@@ -1,0 +1,193 @@
+# MQTT-based simulator that publishes telemetry and mission state and responds to control messages.
+# Run: python backend\simulator.py --broker localhost --port 1883
+
+import argparse
+import json
+import random
+import threading
+import time
+from copy import deepcopy
+
+import paho.mqtt.client as mqtt
+from backend.sample_missions import SAMPLE_MISSION
+
+TELEMETRY_TOPIC = "tricorder/telemetry"
+MISSION_TOPIC = "tricorder/mission"
+CONTROL_TOPIC = "tricorder/control"
+
+class SuitSimulator:
+    def __init__(self, client):
+        self.client = client
+        self.telemetry_interval = 1.0  # seconds
+        self.running = True
+        self.mission = deepcopy(SAMPLE_MISSION)
+        self.mission_state = {
+            "status": "ready",  # ready, running, paused, stopped
+            "elapsed": 0,
+            "tasks": self.mission["tasks"],
+        }
+        # initial vitals
+        self.o2 = 98.0
+        self.co2 = 0.04
+        self.suit_temp = 20.0
+        self.external_temp = -40.0
+        self.battery = 95.0
+        self.leak = False
+        self._lock = threading.Lock()
+        self._telemetry_thread = threading.Thread(target=self._telemetry_loop, daemon=True)
+        self._mission_thread = threading.Thread(target=self._mission_loop, daemon=True)
+
+    def start(self):
+        self._telemetry_thread.start()
+        self._mission_thread.start()
+        self.publish_mission()  # initial mission publish
+
+    def _telemetry_loop(self):
+        while self.running:
+            self._simulate_tick()
+            payload = {
+                "o2": round(self.o2, 2),
+                "co2": round(self.co2, 3),
+                "suit_temp": round(self.suit_temp, 2),
+                "external_temp": round(self.external_temp, 2),
+                "battery": round(self.battery, 2),
+                "leak": self.leak,
+                "timestamp": int(time.time()),
+            }
+            self.client.publish(TELEMETRY_TOPIC, json.dumps(payload))
+            time.sleep(self.telemetry_interval)
+
+    def _mission_loop(self):
+        last_time = time.time()
+        while self.running:
+            time.sleep(0.5)
+            now = time.time()
+            dt = now - last_time
+            last_time = now
+            with self._lock:
+                if self.mission_state["status"] == "running":
+                    self.mission_state["elapsed"] += dt
+                    # optionally, auto-complete tasks based on proj_duration (demo)
+                    for t in self.mission_state["tasks"]:
+                        if not t.get("done") and self.mission_state["elapsed"] >= t.get("proj_duration", 0):
+                            t["done"] = False  # don't auto-mark done; keep manual
+                    # if elapsed surpasses max_duration warn by publishing mission (UI can handle)
+            # Publish mission state occasionally
+            if int(time.time()) % 5 == 0:
+                self.publish_mission()
+
+    def _simulate_tick(self):
+        # small random variations
+        if not self.leak:
+            self.o2 += random.uniform(-0.02, 0.02)
+            self.co2 += random.uniform(-0.001, 0.001)
+        else:
+            # leak: O2 decreases, CO2 may fluctuate
+            self.o2 -= random.uniform(0.1, 0.8)
+            self.co2 += random.uniform(0.01, 0.1)
+
+        # battery slowly drains, sometimes a spike if compromised
+        self.battery -= random.uniform(0.01, 0.05)
+        # occasional battery fault event
+        if random.random() < 0.001:
+            # sudden discharge
+            self.battery -= random.uniform(5, 20)
+
+        # temperature controlled but can drift
+        self.suit_temp += random.uniform(-0.02, 0.02)
+        self.external_temp += random.uniform(-0.1, 0.1)
+
+        # if battery very low, environment control worsens
+        if self.battery < 20 and random.random() < 0.02:
+            self.leak = True
+
+        # clamp
+        self.o2 = max(0.0, min(100.0, self.o2))
+        self.co2 = max(0.0, self.co2)
+        self.battery = max(0.0, self.battery)
+
+        # if a hazardous condition occurs, also publish a short warning on mission topic (or keep as telemetry flag)
+        if self.o2 < 18.0:
+            # mark an emergency in mission state for UI to highlight
+            with self._lock:
+                self.mission_state["emergency"] = "low_o2"
+
+    def process_control(self, payload):
+        """
+        payload is a dict containing actions:
+        {"action":"start"|"pause"|"stop"|"mark_task","task_id": <int>}
+        """
+        action = payload.get("action")
+        with self._lock:
+            if action == "start":
+                self.mission_state["status"] = "running"
+            elif action == "pause":
+                self.mission_state["status"] = "paused"
+            elif action == "stop":
+                self.mission_state["status"] = "stopped"
+            elif action == "mark_task":
+                tid = payload.get("task_id")
+                for t in self.mission_state["tasks"]:
+                    if t.get("id") == tid:
+                        t["done"] = True
+                        break
+            # republish mission after change
+            self.publish_mission()
+
+    def publish_mission(self):
+        with self._lock:
+            report = {
+                "id": self.mission["id"],
+                "name": self.mission["name"],
+                "duration": self.mission["duration"],
+                "max_duration": self.mission["max_duration"],
+                "status": self.mission_state.get("status"),
+                "elapsed": int(self.mission_state.get("elapsed", 0)),
+                "tasks": self.mission_state.get("tasks"),
+                "emergency": self.mission_state.get("emergency", None),
+            }
+        self.client.publish(MISSION_TOPIC, json.dumps(report))
+
+def on_connect(client, userdata, flags, rc):
+    print("Simulator connected to broker, rc=", rc)
+    client.subscribe(CONTROL_TOPIC)
+
+def on_message(client, userdata, msg):
+    try:
+        payload = json.loads(msg.payload.decode("utf-8"))
+    except Exception as e:
+        print("Bad control payload:", e)
+        return
+    sim = userdata.get("sim")
+    if sim:
+        sim.process_control(payload)
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--broker", default="localhost")
+    parser.add_argument("--port", type=int, default=1883)
+    parser.add_argument("--client-id", default="tricorder-sim")
+    args = parser.parse_args()
+
+    client = mqtt.Client(client_id=args.client_id, userdata={})
+    sim = SuitSimulator(client)
+    client.user_data_set({"sim": sim})
+    client.on_connect = on_connect
+    client.on_message = on_message
+
+    client.connect(args.broker, args.port)
+    client.loop_start()
+
+    sim.start()
+
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        print("Stopping simulator...")
+        sim.running = False
+        client.loop_stop()
+        client.disconnect()
+
+if __name__ == "__main__":
+    main()
