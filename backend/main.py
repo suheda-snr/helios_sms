@@ -1,19 +1,18 @@
 import sys
-from PySide6.QtGui import QGuiApplication
-from PySide6.QtQuick import QQuickView
-from PySide6.QtCore import QUrl
+from PySide6.QtWidgets import QApplication
+from PySide6.QtQml import QQmlApplicationEngine
+from telemetry.suit import TricorderBackend  # backend object for vitals
 
 if __name__ == "__main__":
-    app = QGuiApplication(sys.argv)
+    app = QApplication(sys.argv)
 
-    # Create QQuickView
-    view = QQuickView()
-    view.setSource(QUrl.fromLocalFile("frontend/main.qml"))
+    backend = TricorderBackend()
 
-    # Make the root object resize with the view
-    view.setResizeMode(QQuickView.SizeRootObjectToView)
+    engine = QQmlApplicationEngine()
+    engine.rootContext().setContextProperty("backend", backend)
+    engine.load("frontend/main.qml")
 
-    # Show the window
-    view.show()
+    if not engine.rootObjects():
+        sys.exit(-1)
 
     sys.exit(app.exec())
