@@ -2,4 +2,4 @@
 name = "PySide QtQuick Project"
 
 [tool.pyside6-project]
-files = ["main.py", "main.qml"]
+files = ["backend/main.py", "frontend/main.qml"]

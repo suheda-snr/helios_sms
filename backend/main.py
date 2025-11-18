@@ -8,7 +8,7 @@ if __name__ == "__main__":
 
     # Create QQuickView
     view = QQuickView()
-    view.setSource(QUrl.fromLocalFile("main.qml"))
+    view.setSource(QUrl.fromLocalFile("frontend/main.qml"))
 
     # Make the root object resize with the view
     view.setResizeMode(QQuickView.SizeRootObjectToView)
