@@ -1,0 +1,65 @@
+# Python compiled files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environment (if you use venv)
+venv/
+env/
+.env/
+
+# PySide6/Qt build files
+*.pyside6
+*.qmlc
+*.qmltypes
+*.qmlproject.user
+
+# Qt Creator generated files
+*.pro.user
+*.pro.user.*
+*.creator.user
+*.creator.user.*
+*.qrc.py
+*.rcc
+*.obj
+*.o
+*.exe
+*.dll
+*.so
+*.lib
+*.ncb
+*.user
+*.user.*
+*.log
+*.layout
+
+# IDE/editor files
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+*.swp
+*~
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Simulation outputs / logs
+simulation/*.log
+simulation/*.tmp
+
+# Any local configs
+*.local
+
+# Ignore Python virtual environments
+*.venv/
+*.venv/*
+
+# Qt Creator specific
+.qtcreator/
+
+# Bytecode
+__pycache__/
+*.pyc

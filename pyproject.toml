@@ -1,0 +1,5 @@
+[project]
+name = "PySide QtQuick Project"
+
+[tool.pyside6-project]
+files = ["backend/main.py", "backend/simulator/suit_simulator.py", "backend/telemetry/suit.py", "frontend/main.qml"]
