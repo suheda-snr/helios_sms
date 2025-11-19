@@ -48,8 +48,8 @@ class SuitSimulator:
 
     def _simulate_tick(self):
         if not self.leak:
-            self.o2 += random.uniform(-0.02, 0.02)
-            self.co2 += random.uniform(-0.001, 0.001)
+            self.o2 += random.uniform(-0.2, 0.2)
+            self.co2 += random.uniform(-0.05, 0.05)
         else:
             self.o2 -= random.uniform(0.1, 0.8)
             self.co2 += random.uniform(0.01, 0.1)
