@@ -7,6 +7,7 @@ Item {
     id: tricorderView
     property var telemetryData
     signal warningIssued(string warningMsg)
+    property var activeWarnings: []
 
     Rectangle {
         anchors.fill: parent
@@ -51,7 +52,7 @@ Item {
 
             ColumnLayout {
                 spacing: 18
-                anchors.verticalCenter: parent.verticalCenter
+                Layout.alignment: Qt.AlignVCenter
 
                 VitalsDial {
                     label: "Battery"
@@ -92,11 +93,53 @@ Item {
             warningText: ""
         }
 
+        // Active warnings panel (right side)
+        Rectangle {
+            id: warningsPanel
+            width: 220
+            anchors.top: parent.top
+            anchors.right: parent.right
+            anchors.topMargin: 72
+            height: parent.height - 120
+            radius: 8
+            color: Qt.rgba(0.04,0.08,0.09,0.7)
+            border.color: "#2a6b6f"
+
+            Column {
+                anchors.fill: parent
+                anchors.margins: 8
+                spacing: 8
+
+                Text { text: "Active Warnings"; color: "#ffdcdc"; font.pixelSize: 12; font.bold: true }
+
+                Repeater {
+                    model: activeWarnings
+                    delegate: WarningItem {
+                        warning: modelData
+                        onAcknowledge: {
+                            backend.acknowledgeWarning(modelData.id)
+                        }
+                    }
+                }
+            }
+        }
+
         Connections {
             target: backend
             function onWarningIssued(msg) {
                 warningDisplay.warningText = msg
             }
+        }
+
+        Connections {
+            target: backend
+            function onActiveWarningsUpdated() {
+                activeWarnings = backend.getActiveWarnings()
+            }
+        }
+
+        Component.onCompleted: {
+            activeWarnings = backend.getActiveWarnings()
         }
     }
 }

@@ -21,6 +21,8 @@ ApplicationWindow {
         }
     }
 
+    // Alert sound is played from the Python backend using QSoundEffect
+
     Connections {
         target: backend
         function onTelemetryUpdated(newTelemetry) {
