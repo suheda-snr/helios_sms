@@ -1,10 +1,26 @@
-from PySide6.QtCore import QObject, Signal, Slot
+from PySide6.QtCore import QObject, Signal, Slot, QTimer
 from pathlib import Path
 import time
 import os
 import wave
 import math
 from mqtt.client import MQTTClient
+
+# Import MissionManager robustly so running `python backend\main.py` works both
+# when modules are executed as packages and when run as scripts.
+try:
+    # normal package import when running as module (backend.telemetry.suit)
+    from backend.missions import MissionManager
+except Exception:
+    try:
+        # relative import when executed as package
+        from ..missions import MissionManager
+    except Exception:
+        try:
+            # fallback when running from backend/ directory as script
+            from missions import MissionManager
+        except Exception:
+            MissionManager = None
 
 TELEMETRY_TOPIC = "tricorder/telemetry"
 
@@ -61,16 +77,78 @@ class TricorderBackend(QObject):
         # Active warnings tracked by id -> info dict
         self.active_warnings = {}
 
+        # Keep last telemetry payload available for QML to query after engine loads
+        self._last_telemetry = {}
+
+        # Mission manager for mission planning/execution
+        try:
+            self.missionManager = MissionManager(self)
+        except Exception:
+            self.missionManager = None
+
+        # Seed demo missions for UI and testing if mission manager is available
+        try:
+            if self.missionManager:
+                # Create a repair mission with a few tasks
+                mid = self.missionManager.createMission("Repair Panel", 600, 900)
+                self.missionManager.addTask(mid, "Approach panel", "Move to the damaged panel", 60)
+                self.missionManager.addTask(mid, "Secure tether", "Attach safety tether", 30)
+                self.missionManager.addTask(mid, "Replace module", "Swap out faulty module", 300)
+
+                # Create an inspection mission
+                mid2 = self.missionManager.createMission("Inspect Antenna", 300, 600)
+                self.missionManager.addTask(mid2, "Scan for damage", "Run diagnostic scan", 120)
+                self.missionManager.addTask(mid2, "Document", "Take photos and logs", 60)
+        except Exception:
+            pass
+
         # MQTT setup
         self.mqtt = MQTTClient(broker_host, broker_port, client_id)
         self.mqtt.on_message_callback = self._on_message
         self.mqtt.connect()
         self.mqtt.loop_start()
 
+        # Emit an initial telemetry payload so UI has values before MQTT/simulator runs
+        try:
+            initial = {
+                'o2': 98.6,
+                'battery': 88,
+                'co2': 0.04,
+                'leak': False,
+                'suit_temp': 21.5,
+                'external_temp': -60.0,
+            }
+            # store and send initial telemetry to QML and check warnings
+            self._last_telemetry = initial
+            try:
+                self.telemetryUpdated.emit(initial)
+            except Exception:
+                pass
+            self._check_warnings(initial)
+        except Exception:
+            pass
+
     def _on_message(self, topic, payload):
         if topic == TELEMETRY_TOPIC:
-            self.telemetryUpdated.emit(payload)
-            self._check_warnings(payload)
+            # The MQTT client runs in a background thread. Emitting Qt signals
+            # or manipulating Qt objects from that thread can cause
+            # "Signal source has been deleted" or other thread-safety errors.
+            # Schedule the emissions to run on the Qt main thread instead.
+            try:
+                # store last telemetry so QML can query it if needed
+                self._last_telemetry = payload
+                QTimer.singleShot(0, lambda payload=payload: self.telemetryUpdated.emit(payload))
+                QTimer.singleShot(0, lambda payload=payload: self._check_warnings(payload))
+            except Exception:
+                # Fallback to direct call if scheduling fails
+                try:
+                    self.telemetryUpdated.emit(payload)
+                except Exception:
+                    pass
+                try:
+                    self._check_warnings(payload)
+                except Exception:
+                    pass
 
     def _log(self, text):
         try:
@@ -128,6 +206,11 @@ class TricorderBackend(QObject):
     def getActiveWarnings(self):
         # return list of warning dicts
         return list(self.active_warnings.values())
+
+    @Slot(result='QVariant')
+    def getLastTelemetry(self):
+        # Return the last known telemetry payload (may be empty dict)
+        return self._last_telemetry
 
     @Slot(result=str)
     def getAlertSoundPath(self):

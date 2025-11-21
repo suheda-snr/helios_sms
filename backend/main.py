@@ -13,6 +13,22 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
 
     backend = TricorderBackend()
+    # Debug: report mission manager status for troubleshooting
+    try:
+        mm = getattr(backend, 'missionManager', None)
+        if mm:
+            try:
+                missions = mm.getAllWithProgress()
+            except Exception:
+                try:
+                    missions = mm.listMissions()
+                except Exception:
+                    missions = None
+            print("MissionManager present. Missions:", missions)
+        else:
+            print("MissionManager not available on backend")
+    except Exception as e:
+        print("Error checking missionManager:", e)
 
     # Setup a short QSoundEffect to play alert sounds when backend raises warnings.
     alert_sound = QSoundEffect()
@@ -97,6 +113,12 @@ if __name__ == "__main__":
 
     engine = QQmlApplicationEngine()
     engine.rootContext().setContextProperty("backend", backend)
+    # Expose mission manager as a separate context property so QML can use it directly
+    try:
+        if getattr(backend, 'missionManager', None):
+            engine.rootContext().setContextProperty("missionManager", backend.missionManager)
+    except Exception:
+        pass
 
     # Resolve QML path relative to the repository root (two levels up from this file)
     qml_file = Path(__file__).resolve().parents[1] / "frontend" / "main.qml"

@@ -21,6 +21,17 @@ ApplicationWindow {
         }
     }
 
+    Component.onCompleted: {
+        // Query the backend for the last telemetry value in case it was emitted
+        // before QML was loaded.
+        try {
+            var last = backend.getLastTelemetry()
+            if (last) telemetryData = last
+        } catch (e) {
+            // ignore
+        }
+    }
+
     // Alert sound is played from the Python backend using QSoundEffect
 
     Connections {

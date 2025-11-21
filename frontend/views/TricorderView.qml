@@ -141,5 +141,16 @@ Item {
         Component.onCompleted: {
             activeWarnings = backend.getActiveWarnings()
         }
+        
+        // Mission planning and execution view
+        MissionView {
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: 12
+            anchors.leftMargin: 12
+            anchors.rightMargin: 12
+            height: 260
+        }
     }
 }
