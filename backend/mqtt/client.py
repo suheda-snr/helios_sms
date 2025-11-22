@@ -4,14 +4,19 @@ import time
 import logging
 from typing import Any
 import paho.mqtt.client as mqtt
+try:
+    from backend.common.topics import TRICORDER_TELEMETRY
+except Exception:
+    TRICORDER_TELEMETRY = "tricorder/telemetry"
 
 
 class MQTTClient:
-    DEFAULT_TOPIC = "tricorder/telemetry"
+    DEFAULT_TOPIC = TRICORDER_TELEMETRY
     
     def __init__(self, host="localhost", port=1883, client_id="mqtt-client"):
         self.host = host
         self.port = port
+        self.client_id = client_id
         self._client = mqtt.Client(client_id=client_id)
         self._lock = threading.Lock()
         self._connected = False
@@ -26,6 +31,7 @@ class MQTTClient:
 
     def connect(self):
         try:
+            self._logger.info("MQTT connecting to %s:%s as client_id=%s", self.host, self.port, getattr(self, 'client_id', '<unknown>'))
             self._client.connect(self.host, self.port, 60)
             # do not start loop here; callers may manage loop lifecycle
             self._stop_reconnect = False
@@ -57,15 +63,15 @@ class MQTTClient:
     def _on_connect(self, client, userdata, flags, rc):
         if rc == 0:
             self._connected = True
-            self._logger.info("Connected to MQTT at %s:%s", self.host, self.port)
+            self._logger.info("Connected to MQTT at %s:%s (client_id=%s)", self.host, self.port, getattr(self, 'client_id', '<unknown>'))
             client.subscribe(self.DEFAULT_TOPIC)
         else:
-            self._logger.warning("Connection failed: %s", rc)
+            self._logger.warning("Connection failed: %s (client_id=%s)", rc, getattr(self, 'client_id', '<unknown>'))
 
     def _on_disconnect(self, client, userdata, rc):
         self._connected = False
         if rc != 0:
-            self._logger.warning("Disconnected unexpectedly: %s", rc)
+            self._logger.warning("Disconnected unexpectedly: %s (client_id=%s)", rc, getattr(self, 'client_id', '<unknown>'))
             # start reconnect attempts in background
             if not self._stop_reconnect:
                 self._start_reconnect_loop()

@@ -6,12 +6,25 @@ import os
 import socket
 
 try:
-    from backend.mqtt import MQTTClient
-except ImportError:
-    repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-    if repo_root not in sys.path:
-        sys.path.insert(0, repo_root)
-    from mqtt import MQTTClient
+    from backend.common.topics import TRICORDER_TELEMETRY
+    from backend.common.mqtt import MQTTClient
+    from backend.common.utils import safe_publish
+except Exception:
+    # fall back to previous imports if common helpers are not available
+    try:
+        from backend.mqtt import MQTTClient
+    except ImportError:
+        repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+        if repo_root not in sys.path:
+            sys.path.insert(0, repo_root)
+        from mqtt import MQTTClient
+    # provide fallback constants/helpers
+    TRICORDER_TELEMETRY = "tricorder/telemetry"
+    def safe_publish(mqtt_client, topic, payload):
+        try:
+            return mqtt_client.publish(topic, payload)
+        except Exception:
+            return False
 
 
 class SuitSimulator:
@@ -22,6 +35,7 @@ class SuitSimulator:
     
     def __init__(self, mqtt_client=None, broker_host="localhost", 
                  broker_port=1883, client_id="tricorder-sim", interval=1.0):
+
         self.mqtt = mqtt_client or MQTTClient(broker_host, broker_port, client_id)
         if not mqtt_client and self.mqtt.connect():
             self.mqtt.loop_start()
@@ -47,7 +61,7 @@ class SuitSimulator:
     def _run(self):
         while self._running:
             self._update_sensors()
-            self.mqtt.publish("tricorder/telemetry", {
+            payload = {
                 "o2": round(self.o2, 2),
                 "co2": round(self.co2, 3),
                 "suit_temp": round(self.suit_temp, 2),
@@ -55,7 +69,16 @@ class SuitSimulator:
                 "battery": round(self.battery, 2),
                 "leak": self.leak,
                 "timestamp": int(time.time())
-            })
+            }
+            # use safe_publish from common utils when available
+            try:
+                safe_publish(self.mqtt, TRICORDER_TELEMETRY, payload)
+            except Exception:
+                # fallback to direct publish
+                try:
+                    self.mqtt.publish(TRICORDER_TELEMETRY, payload)
+                except Exception:
+                    pass
             time.sleep(self.telemetry_interval)
 
     def _update_sensors(self):
@@ -93,9 +116,10 @@ if __name__ == "__main__":
 
     lock = _acquire_lock()
     if not lock:
-        print("Simulator is already running in another terminal. Only one instance allowed.")
+        print("Simulator is already running on port 50000. Only one instance allowed.")
         sys.exit(1)
 
+    # Instantiate with default client id (can be overridden by callers)
     sim = SuitSimulator()
     sim.start()
     print("Simulator running... Press Ctrl+C to stop.")

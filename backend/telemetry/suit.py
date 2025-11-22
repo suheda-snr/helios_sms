@@ -3,14 +3,14 @@ from pathlib import Path
 from .helpers import _make_beep, logger
 
 try:
-    from backend.mqtt import MQTTClient
+    from backend.common.mqtt import MQTTClient
 except ImportError:
-    from mqtt import MQTTClient
+    try:
+        from backend.mqtt import MQTTClient
+    except ImportError:
+        from mqtt import MQTTClient
 
 from .producer import WarningEngine
-
-
-
 
 
 class TricorderBackend(QObject):
@@ -69,9 +69,23 @@ class TricorderBackend(QObject):
 
         # MQTT connection
         self.mqtt = MQTTClient(broker_host, broker_port, client_id)
-        self.mqtt.on_message_callback = self._on_message
-        if self.mqtt.connect():
-            self.mqtt.loop_start()
+        try:
+            # wrapper exposes set_on_message_callback; fallback to attribute if direct client
+            if hasattr(self.mqtt, 'set_on_message_callback'):
+                self.mqtt.set_on_message_callback(self._on_message)
+            else:
+                self.mqtt.on_message_callback = self._on_message
+        except Exception:
+            try:
+                self.mqtt.on_message_callback = self._on_message
+            except Exception:
+                pass
+        if hasattr(self.mqtt, 'connect') and self.mqtt.connect():
+            try:
+                self.mqtt.loop_start()
+            except Exception:
+                pass
+    
 
     def _on_message(self, topic, payload):
         logger.debug("Telemetry: %s", payload)

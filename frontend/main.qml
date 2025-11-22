@@ -13,12 +13,39 @@ ApplicationWindow {
     property var telemetryData: ({})
     signal warningIssued(string warningMsg)
 
-    TricorderView {
+    Rectangle {
         anchors.fill: parent
-        telemetryData: root.telemetryData
-        onWarningIssued: function(msg) {
-            root.warningIssued(msg)
+
+        TabBar {
+            id: tabBar
+            anchors.top: parent.top
+            anchors.left: parent.left
+            anchors.right: parent.right
+            TabButton { text: "Vitals" }
+            TabButton { text: "Missions" }
         }
+
+        Loader {
+            id: viewLoader
+            anchors.top: tabBar.bottom
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            sourceComponent: tabBar.currentIndex === 0 ? tricorderComponent : missionComponent
+        }
+    }
+
+    Component {
+        id: tricorderComponent
+        TricorderView {
+            telemetryData: root.telemetryData
+            onWarningIssued: function(msg) { root.warningIssued(msg) }
+        }
+    }
+
+    Component {
+        id: missionComponent
+        MissionView { }
     }
 
     // Alert sound is played from the Python backend using QSoundEffect

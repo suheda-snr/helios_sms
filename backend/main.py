@@ -14,6 +14,8 @@ if str(_repo_root) not in _sys.path:
 
 from backend.alert_manager import AlertManager
 from backend.telemetry.suit import TricorderBackend
+from backend.mission.mission import MissionBackend
+from backend.simulator.simulator import SimulatorBackend
 
 
 if __name__ == "__main__":
@@ -26,18 +28,32 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
     backend = TricorderBackend()
     alert_mgr = AlertManager(backend)
-    
+
+    mission_backend = MissionBackend()
+    # mission adapter removed; QML uses `mission` directly
+
+    simulator_backend = SimulatorBackend()
+
     engine = QQmlApplicationEngine()
     engine.rootContext().setContextProperty("backend", backend)
+    engine.rootContext().setContextProperty("mission", mission_backend)
+    engine.rootContext().setContextProperty("simulator", simulator_backend)
     
     qml_file = Path(__file__).resolve().parents[1] / "frontend" / "main.qml"
     engine.load(QUrl.fromLocalFile(str(qml_file)))
     
     if not engine.rootObjects():
         sys.exit(-1)
-    # ensure backend cleans up MQTT on application exit
     try:
         app.aboutToQuit.connect(backend.shutdown)
+    except Exception:
+        pass
+    try:
+        app.aboutToQuit.connect(mission_backend.shutdown)
+    except Exception:
+        pass
+    try:
+        app.aboutToQuit.connect(simulator_backend.shutdown)
     except Exception:
         pass
 
