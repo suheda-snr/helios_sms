@@ -1,7 +1,6 @@
 from PySide6.QtCore import QObject, Signal, Slot
 from pathlib import Path
-import wave
-import math
+from .helpers import _make_beep, logger
 
 try:
     from backend.mqtt import MQTTClient
@@ -11,20 +10,11 @@ except ImportError:
 from .producer import WarningEngine
 
 
-def _make_beep(path, freq=880, duration=0.4, volume=0.3, rate=44100):
-    n_samples = int(rate * duration)
-    amplitude = int(32767 * volume)
-    with wave.open(str(path), 'w') as wf:
-        wf.setnchannels(1)
-        wf.setsampwidth(2)
-        wf.setframerate(rate)
-        for i in range(n_samples):
-            t = i / rate
-            sample = int(amplitude * math.sin(2 * math.pi * freq * t))
-            wf.writeframesraw(sample.to_bytes(2, 'little', signed=True))
+
 
 
 class TricorderBackend(QObject):
+
     telemetryUpdated = Signal(dict)
     warningIssued = Signal(str)
     warningRaised = Signal(dict)
@@ -33,7 +23,7 @@ class TricorderBackend(QObject):
 
     def __init__(self, broker_host="localhost", broker_port=1883, client_id="tricorder-app"):
         super().__init__()
-        
+
         # Create alert sound
         backend_dir = Path(__file__).resolve().parents[1]
         assets_dir = backend_dir / "assets"
@@ -42,17 +32,41 @@ class TricorderBackend(QObject):
         if not self._alert_sound.exists():
             try:
                 _make_beep(self._alert_sound)
-            except: pass
-        
+            except Exception:
+                # _make_beep already logged; continue without crashing the UI
+                pass
+
         # Warning engine
         self.engine = WarningEngine()
-        self.engine.on_raise = lambda info: (
-            self.warningIssued.emit(info.get('message', '')),
-            self.warningRaised.emit(info)
-        )
-        self.engine.on_clear = lambda wid: self.warningCleared.emit(wid)
-        self.engine.on_update = lambda: self.activeWarningsUpdated.emit()
-        
+        # use explicit methods instead of lambdas for clarity
+        def _on_raise(info: dict):
+            try:
+                # Emit a short string for simple UI handlers
+                self.warningIssued.emit(info.get('message', ''))
+            except Exception:
+                logger.exception("Error emitting warningIssued")
+            try:
+                # Emit structured warning for other consumers
+                self.warningRaised.emit(info)
+            except Exception:
+                logger.exception("Error emitting warningRaised")
+
+        def _on_clear(wid: str):
+            try:
+                self.warningCleared.emit(wid)
+            except Exception:
+                logger.exception("Error emitting warningCleared")
+
+        def _on_update():
+            try:
+                self.activeWarningsUpdated.emit()
+            except Exception:
+                logger.exception("Error emitting activeWarningsUpdated")
+
+        self.engine.on_raise = _on_raise
+        self.engine.on_clear = _on_clear
+        self.engine.on_update = _on_update
+
         # MQTT connection
         self.mqtt = MQTTClient(broker_host, broker_port, client_id)
         self.mqtt.on_message_callback = self._on_message
@@ -60,9 +74,15 @@ class TricorderBackend(QObject):
             self.mqtt.loop_start()
 
     def _on_message(self, topic, payload):
-        print(f"Telemetry: {payload}")
-        self.telemetryUpdated.emit(payload)
-        self.engine.process(payload)
+        logger.debug("Telemetry: %s", payload)
+        try:
+            self.telemetryUpdated.emit(payload)
+        except Exception:
+            logger.exception("Error emitting telemetryUpdated")
+        try:
+            self.engine.process(payload)
+        except Exception:
+            logger.exception("Error processing telemetry payload")
 
     @Slot(str)
     def acknowledgeWarning(self, wid):
@@ -75,3 +95,10 @@ class TricorderBackend(QObject):
     @Slot(result=str)
     def getAlertSoundPath(self):
         return str(self._alert_sound)
+
+    def shutdown(self):
+        try:
+            if getattr(self, 'mqtt', None):
+                self.mqtt.disconnect()
+        except Exception:
+            logger.exception("Error during backend shutdown")

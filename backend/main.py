@@ -1,40 +1,28 @@
 import sys
+import logging
 from pathlib import Path
 from PySide6.QtWidgets import QApplication
+from PySide6.QtQuickControls2 import QQuickStyle
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtCore import QUrl
-from PySide6.QtMultimedia import QSoundEffect
-from telemetry.suit import TricorderBackend
+from pathlib import Path as _Path
+import sys as _sys
 
+_repo_root = _Path(__file__).resolve().parents[1]
+if str(_repo_root) not in _sys.path:
+    _sys.path.insert(0, str(_repo_root))
 
-class AlertManager:
-    def __init__(self, backend):
-        self.backend = backend
-        self.sound = QSoundEffect()
-        self._looping = False
-        
-        sound_path = backend.getAlertSoundPath()
-        if sound_path:
-            self.sound.setSource(QUrl.fromLocalFile(sound_path))
-            self.sound.setVolume(0.9)
-        
-        backend.warningRaised.connect(self._update)
-        backend.activeWarningsUpdated.connect(self._update)
-    
-    def _update(self, _=None):
-        has_unacked = any(not w.get('acknowledged') 
-                         for w in self.backend.getActiveWarnings())
-        
-        if has_unacked and not self._looping:
-            self.sound.setLoopCount(QSoundEffect.Infinite)
-            self.sound.play()
-            self._looping = True
-        elif not has_unacked and self._looping:
-            self.sound.stop()
-            self._looping = False
+from backend.alert_manager import AlertManager
+from backend.telemetry.suit import TricorderBackend
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
+
+    try:
+        QQuickStyle.setStyle('Basic')
+    except Exception:
+        pass
     app = QApplication(sys.argv)
     backend = TricorderBackend()
     alert_mgr = AlertManager(backend)
@@ -47,5 +35,10 @@ if __name__ == "__main__":
     
     if not engine.rootObjects():
         sys.exit(-1)
-    
+    # ensure backend cleans up MQTT on application exit
+    try:
+        app.aboutToQuit.connect(backend.shutdown)
+    except Exception:
+        pass
+
     sys.exit(app.exec())
