@@ -3,6 +3,7 @@ import time
 import random
 import sys
 import os
+import socket
 
 try:
     from backend.mqtt import MQTTClient
@@ -81,6 +82,20 @@ class SuitSimulator:
 
 
 if __name__ == "__main__":
+    def _acquire_lock(port=50000):
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            s.bind(('127.0.0.1', port))
+            s.listen(1)
+            return s
+        except OSError:
+            return None
+
+    lock = _acquire_lock()
+    if not lock:
+        print("Simulator is already running in another terminal. Only one instance allowed.")
+        sys.exit(1)
+
     sim = SuitSimulator()
     sim.start()
     print("Simulator running... Press Ctrl+C to stop.")
@@ -91,3 +106,8 @@ if __name__ == "__main__":
         print("\nStopping...")
         sim._running = False
         print("Stopped.")
+    finally:
+        try:
+            lock.close()
+        except Exception:
+            pass
