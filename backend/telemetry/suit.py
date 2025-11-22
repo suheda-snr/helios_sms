@@ -71,6 +71,17 @@ class TricorderBackend(QObject):
         if topic == TELEMETRY_TOPIC:
             self.telemetryUpdated.emit(payload)
             self._check_warnings(payload)
+        elif topic == "tricorder/commands":
+            # handle incoming commands such as acknowledgements from other frontends
+            try:
+                if isinstance(payload, dict) and payload.get('type') == 'ack':
+                    wid = payload.get('id')
+                    if wid and wid in self.active_warnings:
+                        self.active_warnings[wid]['acknowledged'] = True
+                        self._log(f"ACK (remote) {wid}")
+                        self.activeWarningsUpdated.emit()
+            except Exception:
+                pass
 
     def _log(self, text):
         try:

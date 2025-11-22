@@ -25,7 +25,9 @@ class MQTTClient:
 
     def _on_connect(self, client, userdata, flags, rc):
         print("Connected to MQTT broker, rc=", rc)
-        client.subscribe("tricorder/telemetry")  # only telemetry for now
+        # Subscribe to telemetry and commands so backend and frontends can communicate
+        client.subscribe("tricorder/telemetry")
+        client.subscribe("tricorder/commands")
 
     def _on_message(self, client, userdata, msg):
         try:

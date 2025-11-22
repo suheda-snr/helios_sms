@@ -20,7 +20,7 @@ class SuitSimulator:
         self.co2 = 0.04
         self.suit_temp = 20.0
         self.external_temp = -40.0
-        self.battery = 95.0
+        self.battery = 90.0
         self.leak = False
 
         self.telemetry_interval = 1.0

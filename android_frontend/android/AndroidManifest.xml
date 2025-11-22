@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="org.helios.tricorder">
+
+    <!-- Allow network access (MQTT over TCP) -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <application android:label="TricorderFrontend">
+        <!-- Qt will merge this manifest with the one it generates. -->
+    </application>
+</manifest>

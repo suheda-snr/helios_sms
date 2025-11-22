@@ -1,0 +1,10 @@
+<!DOCTYPE RCC><RCC version="1.0">
+<qresource prefix="/">
+    <file>../frontend/main.qml</file>
+    <file>../frontend/views/TricorderView.qml</file>
+    <file>../frontend/components/WarningItem.qml</file>
+    <file>../frontend/components/WarningDisplay.qml</file>
+    <file>../frontend/components/VitalsDial.qml</file>
+    <file>../frontend/components/TempDisplay.qml</file>
+</qresource>
+</RCC>
