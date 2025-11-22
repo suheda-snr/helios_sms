@@ -1,19 +1,40 @@
-import sys
-import os
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
 import threading
 import time
 import random
-from mqtt.client import MQTTClient  # now this works
+from typing import Optional
+
+import sys
+import os
+
+try:
+    from backend.mqtt import MQTTClient
+except Exception:
+    # fallback for running this file directly as a script from the repo root
+    repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+    if repo_root not in sys.path:
+        sys.path.insert(0, repo_root)
+    from mqtt import MQTTClient
 
 TELEMETRY_TOPIC = "tricorder/telemetry"
 
+
 class SuitSimulator:
-    def __init__(self, broker_host="localhost", broker_port=1883, client_id="tricorder-sim"):
-        self.mqtt = MQTTClient(broker_host, broker_port, client_id)
-        self.mqtt.connect()
-        self.mqtt.loop_start()
+    #Simulator that publishes periodic telemetry over MQTT.
+
+    def __init__(self, mqtt_client: Optional[MQTTClient] = None, *,
+                 broker_host: str = "localhost", broker_port: int = 1883,
+                 client_id: str = "tricorder-sim"):
+        # allow injecting an existing client
+        if mqtt_client is not None:
+            self.mqtt = mqtt_client
+        else:
+            self.mqtt = MQTTClient(broker_host, broker_port, client_id)
+            # connect automatically for the simple run case
+            try:
+                self.mqtt.connect()
+                self.mqtt.loop_start()
+            except Exception:
+                pass
 
         # Initial vitals
         self.o2 = 98.0
@@ -24,12 +45,24 @@ class SuitSimulator:
         self.leak = False
 
         self.telemetry_interval = 1.0
-        self.running = True
+        self.running = False
         self.lock = threading.Lock()
         self.thread = threading.Thread(target=self._telemetry_loop, daemon=True)
 
     def start(self):
-        self.thread.start()
+        if not self.running:
+            self.running = True
+            if not self.thread.is_alive():
+                self.thread = threading.Thread(target=self._telemetry_loop, daemon=True)
+                self.thread.start()
+
+    def stop(self, timeout: float = 2.0):
+        self.running = False
+        try:
+            if self.thread.is_alive():
+                self.thread.join(timeout)
+        except Exception:
+            pass
 
     def _telemetry_loop(self):
         while self.running:
@@ -43,7 +76,11 @@ class SuitSimulator:
                 "leak": self.leak,
                 "timestamp": int(time.time())
             }
-            self.mqtt.publish(TELEMETRY_TOPIC, payload)
+            try:
+                self.mqtt.publish(TELEMETRY_TOPIC, payload)
+            except Exception:
+                # publishing should not crash simulator loop
+                pass
             time.sleep(self.telemetry_interval)
 
     def _simulate_tick(self):
@@ -78,5 +115,5 @@ if __name__ == "__main__":
         while True:
             time.sleep(1)
     except KeyboardInterrupt:
-        sim.running = False
+        sim.stop()
         print("Simulator stopped.")
