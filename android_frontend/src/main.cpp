@@ -16,9 +16,13 @@ int main(int argc, char *argv[])
     QQmlApplicationEngine engine;
     engine.rootContext()->setContextProperty("backend", &backend);
 
-    // Locate the repository's `frontend/main.qml` by walking up parent directories
-    QString qmlPath;
-    {
+    // First try to load QML from the embedded resource (works on Android/apk)
+    engine.load(QUrl(QStringLiteral("qrc:/main.qml")));
+
+    // If loading from resource failed (e.g., during desktop dev where qrc may be different),
+    // fall back to finding the `frontend/main.qml` on disk by walking up parent directories.
+    if (engine.rootObjects().isEmpty()) {
+        QString qmlPath;
         QString exeDir = QCoreApplication::applicationDirPath();
         QDir dir(exeDir);
         // walk up a few levels to find the frontend folder
@@ -30,14 +34,14 @@ int main(int argc, char *argv[])
             }
             if (!dir.cdUp()) break;
         }
-    }
 
-    if (qmlPath.isEmpty()) {
-        qWarning() << "Could not locate frontend/main.qml relative to executable; expected to find the QML in a parent folder.";
-        return -1;
-    }
+        if (qmlPath.isEmpty()) {
+            qWarning() << "Could not locate frontend/main.qml relative to executable; expected to find the QML in a parent folder.";
+            return -1;
+        }
 
-    engine.load(QUrl::fromLocalFile(qmlPath));
+        engine.load(QUrl::fromLocalFile(qmlPath));
+    }
     if (engine.rootObjects().isEmpty())
         return -1;
 

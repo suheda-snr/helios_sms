@@ -9,6 +9,11 @@ venv/
 env/
 .env/
 
+
+
+
+
+`
 # PySide6/Qt build files
 *.pyside6
 *.qmlc

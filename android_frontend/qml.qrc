@@ -1,10 +1,10 @@
 <!DOCTYPE RCC><RCC version="1.0">
 <qresource prefix="/">
-    <file>../frontend/main.qml</file>
-    <file>../frontend/views/TricorderView.qml</file>
-    <file>../frontend/components/WarningItem.qml</file>
-    <file>../frontend/components/WarningDisplay.qml</file>
-    <file>../frontend/components/VitalsDial.qml</file>
-    <file>../frontend/components/TempDisplay.qml</file>
+    <file alias="main.qml">../frontend/main.qml</file>
+    <file alias="views/TricorderView.qml">../frontend/views/TricorderView.qml</file>
+    <file alias="components/WarningItem.qml">../frontend/components/WarningItem.qml</file>
+    <file alias="components/WarningDisplay.qml">../frontend/components/WarningDisplay.qml</file>
+    <file alias="components/VitalsDial.qml">../frontend/components/VitalsDial.qml</file>
+    <file alias="components/TempDisplay.qml">../frontend/components/TempDisplay.qml</file>
 </qresource>
 </RCC>

@@ -16,7 +16,7 @@ if(NOT TARGET Qt6::Mqtt)
     message(FATAL_ERROR "Qt MQTT module not found.\n\nInstall the Qt MQTT add-on for your Qt version (use the Qt MaintenanceTool → Add or remove components),\nor install the Qt MQTT package that matches your Qt installation.\nAlternatively, run CMake with -DCMAKE_PREFIX_PATH=\"<path-to-Qt-lib-cmake>\" so find_package can locate Qt.\n\nExample: cmake .. -G \"Ninja\" -DCMAKE_PREFIX_PATH=\"C:/Qt/6.10.0/mingw_64/lib/cmake\"")
 endif()
 
-add_executable(${PROJECT_NAME}
+qt_add_executable(${PROJECT_NAME}
     src/main.cpp
     src/tricorderbackend.cpp
     src/tricorderbackend.h
@@ -25,7 +25,7 @@ add_executable(${PROJECT_NAME}
 
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
-target_link_libraries(${PROJECT_NAME}
+target_link_libraries(${PROJECT_NAME} PRIVATE
     Qt6::Core
     Qt6::Gui
     Qt6::Qml
