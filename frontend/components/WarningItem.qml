@@ -8,7 +8,7 @@ Rectangle {
     signal acknowledge(string id)
 
     width: parent ? parent.width : 200
-    height: 56
+    height: 50
     radius: 6
     color: warning && !warning.acknowledged && warning.severity === 'critical' ? Qt.rgba(0.35,0.05,0.05,0.95) : Qt.rgba(0.06,0.02,0.02,0.6)
     border.color: warning && (warning.severity === 'critical' ? '#ff4444' : '#ffcc66')
@@ -37,15 +37,18 @@ Rectangle {
             id: ackBtn
             text: warning && warning.acknowledged ? '\u2713 ACK' : (warning && warning.severity === 'critical' ? 'CLICK TO SILENCE' : 'Acknowledge')
             enabled: !(warning && warning.acknowledged)
-            font.pixelSize: 12
-            implicitWidth: 110
-            implicitHeight: 34
+            font.pixelSize: 10
+            implicitWidth: 80
+            implicitHeight: 30
+            Layout.maximumWidth: 85
+            Layout.preferredWidth: 80
             contentItem: Text {
-                text: control.text
-                color: control.enabled ? "#ffffff" : "#eeeeee"
+                text: ackBtn.text
+                color: ackBtn.enabled ? "#ffffff" : "#eeeeee"
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter
                 font.bold: true
+                font.pixelSize: 10
             }
             background: Rectangle {
                 id: bgRect
@@ -61,10 +64,10 @@ Rectangle {
                 Rectangle {
                     id: glowRect
                     anchors.centerIn: parent
-                    width: parent.width + (warning && warning.severity === 'critical' && !(warning && warning.acknowledged) ? 14 : 0)
-                    height: parent.height + (warning && warning.severity === 'critical' && !(warning && warning.acknowledged) ? 14 : 0)
+                    width: parent.width + (root.warning && root.warning.severity === 'critical' && !(root.warning && root.warning.acknowledged) ? 14 : 0)
+                    height: parent.height + (root.warning && root.warning.severity === 'critical' && !(root.warning && root.warning.acknowledged) ? 14 : 0)
                     radius: parent.radius + 6
-                    color: warning && warning.severity === 'critical' && !(warning && warning.acknowledged) ? Qt.rgba(1,0.15,0.15,0.18) : Qt.rgba(0,0,0,0)
+                    color: root.warning && root.warning.severity === 'critical' && !(root.warning && root.warning.acknowledged) ? Qt.rgba(1,0.15,0.15,0.18) : Qt.rgba(0,0,0,0)
                     z: -1
                     Behavior on color { ColorAnimation { duration: 350 } }
                     Behavior on width { NumberAnimation { duration: 350 } }
@@ -73,16 +76,16 @@ Rectangle {
             }
             // pulse animation on the button when critical and unacknowledged
             SequentialAnimation on scale {
-                running: warning && warning.severity === 'critical' && !(warning && warning.acknowledged)
+                running: root.warning && root.warning.severity === 'critical' && !(root.warning && root.warning.acknowledged)
                 loops: Animation.Infinite
                 NumberAnimation { from: 1.0; to: 1.05; duration: 500; easing.type: Easing.InOutQuad }
                 NumberAnimation { from: 1.05; to: 1.0; duration: 500; easing.type: Easing.InOutQuad }
             }
             onClicked: {
-                if (warning && warning.id) {
-                    root.acknowledge(warning.id)
+                if (root.warning && root.warning.id) {
+                    root.acknowledge(root.warning.id)
                     // immediate local feedback while backend processes
-                    warning.acknowledged = true
+                    root.warning.acknowledged = true
                 }
             }
         }
@@ -90,7 +93,7 @@ Rectangle {
 
     // subtle pulse for critical unacknowledged warnings
     SequentialAnimation on opacity {
-        loops: warning && warning.severity === 'critical' && !(warning && warning.acknowledged) ? Animation.Infinite : 1
+        loops: root.warning && root.warning.severity === 'critical' && !(root.warning && root.warning.acknowledged) ? Animation.Infinite : 1
         NumberAnimation { from: 1.0; to: 0.85; duration: 600; easing.type: Easing.InOutQuad }
         NumberAnimation { from: 0.85; to: 1.0; duration: 600; easing.type: Easing.InOutQuad }
     }
