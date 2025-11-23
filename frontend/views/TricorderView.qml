@@ -142,24 +142,81 @@ Item {
                     maximum: 100
                 }
 
-                VitalsDial {
-                    label: "CARBON DIOXIDE"
-                    value: Number(telemetryData.co2 ? telemetryData.co2 : 0)
-                    maximum: 5.0
-                }
-
-                VitalsDial {
+            VitalsDial {
+                label: "CARBON DIOXIDE"
+                value: Number(telemetryData.co2 ? telemetryData.co2 : 0)
+                maximum: 6.0
+            }                VitalsDial {
                     label: "POWER SYSTEMS"
                     value: Number(telemetryData.battery ? telemetryData.battery : 0)
                     maximum: 100
                 }
             }
 
-            // Enhanced temperature display centered below the vitals
-            TempDisplay {
+            // Enhanced temperature and leak status display centered below the vitals
+            RowLayout {
                 Layout.alignment: Qt.AlignHCenter
-                suitTemp: telemetryData.suit_temp ? telemetryData.suit_temp : "-"
-                externalTemp: telemetryData.external_temp ? telemetryData.external_temp : "-"
+                spacing: 40
+                
+                TempDisplay {
+                    suitTemp: telemetryData.suit_temp ? telemetryData.suit_temp : "-"
+                    externalTemp: telemetryData.external_temp ? telemetryData.external_temp : "-"
+                }
+                
+                // Suit integrity status
+                Rectangle {
+                    width: 200
+                    height: 80
+                    radius: 8
+                    color: telemetryData.leak ? Qt.rgba(0.4, 0.05, 0.05, 0.9) : Qt.rgba(0.02, 0.08, 0.12, 0.8)
+                    border.color: telemetryData.leak ? "#ff4444" : "#0f393f"
+                    border.width: 2
+                    
+                    Rectangle {
+                        anchors.fill: parent
+                        anchors.margins: -2
+                        radius: parent.radius + 1
+                        color: "transparent"
+                        border.width: 1
+                        border.color: telemetryData.leak ? Qt.rgba(1, 0.3, 0.3, 0.6) : Qt.rgba(0, 0.8, 1, 0.3)
+                        opacity: 0.6
+                        
+                        SequentialAnimation on opacity {
+                            loops: telemetryData.leak ? Animation.Infinite : 1
+                            running: telemetryData.leak
+                            NumberAnimation { from: 0.6; to: 0.2; duration: 500 }
+                            NumberAnimation { from: 0.2; to: 0.6; duration: 500 }
+                        }
+                    }
+                    
+                    ColumnLayout {
+                        anchors.centerIn: parent
+                        spacing: 4
+                        
+                        Text { 
+                            text: "SUIT INTEGRITY"
+                            color: "#88ccdd" 
+                            font.pixelSize: 11
+                            font.family: "Courier New"
+                            Layout.alignment: Qt.AlignHCenter
+                        }
+                        Text { 
+                            text: telemetryData.leak ? "⚠ LEAK DETECTED" : "✓ SEALED"
+                            color: telemetryData.leak ? "#ff6666" : "#00ff88"
+                            font.pixelSize: 14
+                            font.bold: true
+                            font.family: "Courier New"
+                            Layout.alignment: Qt.AlignHCenter
+                        }
+                        Text { 
+                            text: telemetryData.leak ? "IMMEDIATE ATTENTION" : "NOMINAL STATUS"
+                            color: telemetryData.leak ? "#ffaaaa" : "#88ccdd"
+                            font.pixelSize: 9
+                            font.family: "Courier New"
+                            Layout.alignment: Qt.AlignHCenter
+                        }
+                    }
+                }
             }
         }
 

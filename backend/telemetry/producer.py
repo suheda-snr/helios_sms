@@ -5,7 +5,8 @@ class WarningEngine:
     THRESHOLDS = {
         "o2_low": 19.0,
         "battery_low": 15.0,
-        "co2_high": 1.0,
+        "co2_high": 4.0,
+        "co2_warning": 1.0,
         "suit_temp_low": -20.0,
         "suit_temp_high": 45.0,
     }
@@ -79,8 +80,11 @@ class WarningEngine:
             warnings['low_o2'] = (f"LOW O2 ({o2}%)", 'critical')
         if battery is not None and battery < self.thresholds['battery_low']:
             warnings['low_batt'] = (f"LOW BATTERY ({battery}%)", 'critical')
-        if co2 is not None and co2 > self.thresholds['co2_high']:
-            warnings['high_co2'] = (f"HIGH CO2 ({co2}%)", 'warning')
+        if co2 is not None:
+            if co2 > self.thresholds['co2_high']:
+                warnings['critical_co2'] = (f"CRITICAL CO2 ({co2}%)", 'critical')
+            elif co2 > self.thresholds['co2_warning']:
+                warnings['high_co2'] = (f"HIGH CO2 ({co2}%)", 'warning')
         if leak:
             warnings['suit_leak'] = ("SUIT LEAK DETECTED", 'critical')
         if temp is not None:

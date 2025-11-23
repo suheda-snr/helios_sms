@@ -79,11 +79,24 @@ Item {
             var unit = '%';
             ctx.fillText(unit, cx, cy + r/3);
             
-            // Status indicators
+            // Status indicators with backend-matching thresholds
             var status = "NOMINAL";
             var statusColor = '#00ff88';
-            if (norm < 0.2) { status = "CRITICAL"; statusColor = '#ff4444'; }
-            else if (norm < 0.4) { status = "LOW"; statusColor = '#ffaa44'; }
+            
+            // Use exact backend thresholds for O2 and CO2
+            if (label.indexOf('OXYGEN') !== -1 || label.indexOf('Oxygen') !== -1) {
+                // O2: critical below 19.0%
+                if (value < 19.0) { status = "CRITICAL"; statusColor = '#ff4444'; }
+                else if (value < 40.0) { status = "LOW"; statusColor = '#ffaa44'; }
+            } else if (label.indexOf('CARBON') !== -1) {
+                // CO2: critical above 4.0% (real spacecraft limit)
+                if (value > 4.0) { status = "CRITICAL"; statusColor = '#ff4444'; }
+                else if (value > 1.0) { status = "HIGH"; statusColor = '#ffaa44'; }
+            } else {
+                // Generic percentage thresholds for other values (like battery)
+                if (norm < 0.2) { status = "CRITICAL"; statusColor = '#ff4444'; }
+                else if (norm < 0.4) { status = "LOW"; statusColor = '#ffaa44'; }
+            }
             
             ctx.fillStyle = statusColor;
             ctx.font = Math.round(r/8) + 'px monospace';
