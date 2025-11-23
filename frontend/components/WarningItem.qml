@@ -8,7 +8,7 @@ Rectangle {
     signal acknowledge(string id)
 
     width: parent ? parent.width : 200
-    height: 56
+    height: 50
     radius: 6
     color: warning && !warning.acknowledged && warning.severity === 'critical' ? Qt.rgba(0.35,0.05,0.05,0.95) : Qt.rgba(0.06,0.02,0.02,0.6)
     border.color: warning && (warning.severity === 'critical' ? '#ff4444' : '#ffcc66')
@@ -37,15 +37,18 @@ Rectangle {
             id: ackBtn
             text: warning && warning.acknowledged ? '\u2713 ACK' : (warning && warning.severity === 'critical' ? 'CLICK TO SILENCE' : 'Acknowledge')
             enabled: !(warning && warning.acknowledged)
-            font.pixelSize: 12
-            implicitWidth: 110
-            implicitHeight: 34
+            font.pixelSize: 10
+            implicitWidth: 80
+            implicitHeight: 30
+            Layout.maximumWidth: 85
+            Layout.preferredWidth: 80
             contentItem: Text {
                 text: ackBtn.text
                 color: ackBtn.enabled ? "#ffffff" : "#eeeeee"
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter
                 font.bold: true
+                font.pixelSize: 10
             }
             background: Rectangle {
                 id: bgRect
