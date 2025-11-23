@@ -2,6 +2,13 @@
 #include <QtMqtt/QMqttClient>
 #include <QtMqtt/QMqttSubscription>
 #include <QtMqtt/QMqttTopicName>
+#include <QStandardPaths>
+#include <QFile>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QDir>
+#include <QUuid>
+#include <QDateTime>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonValue>
@@ -16,6 +23,38 @@ TricorderBackend::TricorderBackend(QObject* parent)
     m_thresholds["co2_high"] = 1.0;
 
     connectMqtt();
+
+    // missions persistence and timer
+    m_missionTimer = new QTimer(this);
+    m_missionTimer->setInterval(1000);
+    connect(m_missionTimer, &QTimer::timeout, this, [this]() {
+        bool updated = false;
+        qint64 now = QDateTime::currentSecsSinceEpoch();
+        for (auto it = m_missions.begin(); it != m_missions.end(); ++it) {
+            QVariantMap m = it.value();
+            QString state = m.value("state").toString();
+            if (state == "running") {
+                int elapsed = m.value("elapsed").toInt();
+                m["elapsed"] = elapsed + 1;
+                // if duration reached, stop
+                if (m.contains("duration") && !m.value("duration").isNull()) {
+                    int dur = m.value("duration").toInt();
+                    if (m["elapsed"].toInt() >= dur) {
+                        m["state"] = "stopped";
+                    }
+                }
+                // write back
+                it.value() = m;
+                emit missionProgress(QVariant::fromValue(m));
+                updated = true;
+            }
+        }
+        if (updated) emit missionsUpdated();
+        if (updated) saveMissions();
+    });
+    m_missionTimer->start();
+
+    loadMissions();
 }
 
 void TricorderBackend::connectMqtt()
@@ -135,6 +174,120 @@ void TricorderBackend::acknowledgeWarning(const QString &id)
             m_client->publish(QMqttTopicName(QStringLiteral("tricorder/commands")), doc.toJson());
         }
     }
+}
+
+static QString missionsPath()
+{
+    QString dir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    QDir d(dir);
+    if (!d.exists()) d.mkpath(".");
+    return d.filePath("missions.json");
+}
+
+void TricorderBackend::loadMissions()
+{
+    QString p = missionsPath();
+    QFile f(p);
+    if (!f.exists()) return;
+    if (!f.open(QIODevice::ReadOnly)) return;
+    QByteArray b = f.readAll();
+    f.close();
+    QJsonDocument doc = QJsonDocument::fromJson(b);
+    if (!doc.isArray()) return;
+    QJsonArray arr = doc.array();
+    for (const QJsonValue &v : arr) {
+        if (!v.isObject()) continue;
+        QVariantMap m = v.toObject().toVariantMap();
+        if (m.contains("id")) {
+            m_missions[m.value("id").toString()] = m;
+        }
+    }
+}
+
+void TricorderBackend::saveMissions()
+{
+    QJsonArray arr;
+    for (auto it = m_missions.begin(); it != m_missions.end(); ++it) {
+        QVariantMap m = it.value();
+        QJsonObject obj = QJsonObject::fromVariantMap(m);
+        arr.append(obj);
+    }
+    QJsonDocument doc(arr);
+    QString p = missionsPath();
+    QFile f(p + ".tmp");
+    if (!f.open(QIODevice::WriteOnly)) return;
+    f.write(doc.toJson(QJsonDocument::Indented));
+    f.close();
+    QFile::remove(p);
+    QFile::rename(p + ".tmp", p);
+}
+
+QVariant TricorderBackend::createMission(const QString &name, const QVariant &durationSeconds, const QVariant &tasks, const QString &description)
+{
+    QString mid = QUuid::createUuid().toString();
+    QVariantMap m;
+    m["id"] = mid;
+    m["name"] = name;
+    if (durationSeconds.isNull()) m["duration"] = QVariant(); else m["duration"] = durationSeconds.toInt();
+    m["description"] = description;
+    m["tasks"] = QVariantList();
+    m["state"] = "stopped";
+    m["start_time"] = QVariant();
+    m["elapsed"] = 0;
+    m["created_at"] = QDateTime::currentSecsSinceEpoch();
+    m_missions[mid] = m;
+    emit missionsUpdated();
+    saveMissions();
+    return QVariant::fromValue(m);
+}
+
+void TricorderBackend::startMission(const QString &mid)
+{
+    if (!m_missions.contains(mid)) return;
+    QVariantMap m = m_missions[mid];
+    if (m.value("state").toString() != "running") {
+        m["state"] = "running";
+        m["start_time"] = QDateTime::currentSecsSinceEpoch();
+        m_missions[mid] = m;
+        emit missionsUpdated();
+        saveMissions();
+    }
+}
+
+void TricorderBackend::pauseMission(const QString &mid)
+{
+    if (!m_missions.contains(mid)) return;
+    QVariantMap m = m_missions[mid];
+    if (m.value("state").toString() == "running") {
+        m["state"] = "paused";
+        m["start_time"] = QVariant();
+        m_missions[mid] = m;
+        emit missionsUpdated();
+        saveMissions();
+    }
+}
+
+void TricorderBackend::stopMission(const QString &mid)
+{
+    if (!m_missions.contains(mid)) return;
+    QVariantMap m = m_missions[mid];
+    m["state"] = "stopped";
+    m["start_time"] = QVariant();
+    m["elapsed"] = 0;
+    m_missions[mid] = m;
+    emit missionsUpdated();
+    saveMissions();
+}
+
+QVariantList TricorderBackend::getMissions()
+{
+    QVariantList list;
+    // sort by created_at
+    QList<QVariantMap> arr;
+    for (auto it = m_missions.begin(); it != m_missions.end(); ++it) arr.append(it.value());
+    std::sort(arr.begin(), arr.end(), [](const QVariantMap &a, const QVariantMap &b){ return a.value("created_at").toLongLong() < b.value("created_at").toLongLong(); });
+    for (const QVariantMap &m : arr) list.append(m);
+    return list;
 }
 
 QVariantList TricorderBackend::getActiveWarnings()

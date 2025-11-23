@@ -1,14 +1,15 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
+import QtQuick.Window 2.15
 import "views"
 
 ApplicationWindow {
     id: root
     visible: true
-    width: 480
-    height: 800
+    // Request full screen on mobile so the window fills the device display
+    visibility: Window.FullScreen
     title: "Tricorder - MGST"
-    color: "green"
+    color: "transparent"
 
     property var telemetryData: ({})
     signal warningIssued(string warningMsg)
