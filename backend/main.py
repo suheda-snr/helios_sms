@@ -36,7 +36,8 @@ if __name__ == "__main__":
 
     engine = QQmlApplicationEngine()
     engine.rootContext().setContextProperty("backend", backend)
-    engine.rootContext().setContextProperty("mission", mission_backend)
+    # Expose the mission adapter under a single, clear name used by QML
+    engine.rootContext().setContextProperty("missionBackend", mission_backend)
     engine.rootContext().setContextProperty("simulator", simulator_backend)
     
     qml_file = Path(__file__).resolve().parents[1] / "frontend" / "main.qml"

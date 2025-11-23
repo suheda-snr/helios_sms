@@ -1,0 +1,93 @@
+[
+  {
+    "id": "931ace63-4fcd-41d8-baee-1b04c6a8aa22",
+    "name": "Imported Mission",
+    "description": null,
+    "max_duration_seconds": 3600,
+    "tasks": [
+      {
+        "id": "493dee75-493a-4508-a9d6-eae187a36cce",
+        "title": "Vent Valve Inspection",
+        "description": "Inspect and verify the suit vent valve seals for microfractures.",
+        "projected_seconds": 600,
+        "completed": true
+      },
+      {
+        "id": "04ca07ea-fac1-49c9-842d-b4f84293cf1e",
+        "title": "Battery Health Check",
+        "description": "Run diagnostics on the power cell and log charge/discharge behaviour.",
+        "projected_seconds": 300,
+        "completed": true
+      }
+    ],
+    "started": false,
+    "paused": false,
+    "elapsed_seconds": 60,
+    "projected_seconds": 900,
+    "progress": 100.0,
+    "over_max": false
+  },
+  {
+    "id": "7b9de4c0-590f-4ebf-b7a0-fd51b0877f0d",
+    "name": "Demo Mission",
+    "description": null,
+    "max_duration_seconds": 600,
+    "tasks": [
+      {
+        "id": "173fd313-9e0d-441a-9ad2-5eeb420b70b6",
+        "title": "Check telemetry",
+        "description": "Verify all sensor feeds (O2, CO2, temperature, power) are nominal.",
+        "projected_seconds": 60,
+        "completed": true
+      },
+      {
+        "id": "be58adff-8c31-442a-a4b2-308d9b790fec",
+        "title": "Collect ice sample",
+        "description": "Use the sampling arm to collect a small ice fragment from the surface.",
+        "projected_seconds": 120,
+        "completed": true
+      }
+    ],
+    "started": true,
+    "paused": true,
+    "elapsed_seconds": 839,
+    "projected_seconds": 180,
+    "progress": 100.0,
+    "over_max": false
+  },
+  {
+    "id": "c1b52186-9be0-4543-a3b1-dd8cf9914600",
+    "name": "Repair EVA Alpha",
+    "description": null,
+    "max_duration_seconds": 5400,
+    "tasks": [
+      {
+        "id": "a1f4d8f0-1111-4a2d-8f1a-1234567890ab",
+        "title": "Dock to module A3",
+        "description": "Manually align and secure docking clamps to module A3.",
+        "projected_seconds": 900,
+        "completed": true
+      },
+      {
+        "id": "b2e5c9a1-2222-4b3c-9b2b-abcdef123456",
+        "title": "Replace coolant line",
+        "description": "Remove the damaged coolant line and install the replacement section.",
+        "projected_seconds": 1500,
+        "completed": true
+      },
+      {
+        "id": "c3d6eab2-3333-4c4d-8c3c-012345abcdef",
+        "title": "Verify thermal readings",
+        "description": "Verify external and internal thermal sensors are within expected range.",
+        "projected_seconds": 600,
+        "completed": true
+      }
+    ],
+    "started": false,
+    "paused": false,
+    "elapsed_seconds": 0,
+    "projected_seconds": 3000,
+    "progress": 100.0,
+    "over_max": false
+  }
+]
