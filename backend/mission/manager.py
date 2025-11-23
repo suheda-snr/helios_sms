@@ -67,39 +67,6 @@ class MissionManager:
         except Exception:
             pass
 
-    def create_mission(self, name: str, max_duration_seconds: Optional[int] = None) -> Mission:
-        m = Mission(id=str(uuid.uuid4()), name=name, max_duration_seconds=max_duration_seconds)
-        with self._lock:
-            self._missions[m.id] = m
-        self._publish_state(m.id)
-        try:
-            ok = self._persistence.save(list(self._missions.values()))
-            if ok:
-                self._logger.info("create_mission: persisted mission %s", m.id)
-            else:
-                self._logger.warning("create_mission: failed to persist mission %s", m.id)
-        except Exception:
-            self._logger.exception("Failed saving mission after create")
-        return m
-
-    def add_task(self, mission_id: str, title: str, description: Optional[str] = None, projected_seconds: Optional[int] = None) -> Optional[Task]:
-        with self._lock:
-            m = self._missions.get(mission_id)
-            if not m:
-                return None
-            t = Task(id=str(uuid.uuid4()), title=title, description=description, projected_seconds=projected_seconds)
-            m.tasks.append(t)
-        self._publish_state(mission_id)
-        try:
-            ok = self._persistence.save(list(self._missions.values()))
-            if ok:
-                self._logger.info("add_task: persisted missions after adding task to %s", mission_id)
-            else:
-                self._logger.warning("add_task: failed to persist missions after adding task to %s", mission_id)
-        except Exception:
-            self._logger.exception("Failed saving mission after add_task")
-        return t
-
     def start_mission(self, mission_id: str) -> bool:
         with self._lock:
             m = self._missions.get(mission_id)
@@ -259,17 +226,7 @@ class MissionManager:
         action = payload.get("action")
         if not action:
             return
-        if action == "create_mission":
-            name = payload.get("name", "Unnamed")
-            max_d = payload.get("max_duration_seconds")
-            m = self.create_mission(name, max_d)
-            self._publish_state(m.id)
-        elif action == "add_task":
-            mid = payload.get("mission_id")
-            if not mid:
-                return
-            self.add_task(mid, payload.get("title", "Task"), payload.get("description"), payload.get("projected_seconds"))
-        elif action == "start":
+        if action == "start":
             self.start_mission(payload.get("mission_id"))
         elif action == "pause":
             self.pause_mission(payload.get("mission_id"))
@@ -310,27 +267,13 @@ class MissionManager:
                     self._logger.exception("Failed saving missions in ticker loop")
 
 
-    def get_missions(self) -> List[dict]:
+    def get_missions(self) -> List[Mission]:
+        """Return the stored Mission model objects.
+
+        The frontend expects a list of dicts, so callers that need
+        serializable data (e.g. QML) should call `to_dict()` on each
+        Mission. Keeping the manager API returning model objects makes
+        server-side logic easier to test and reuse.
+        """
         with self._lock:
-            return [
-                {
-                    "id": m.id,
-                    "name": m.name,
-                    "description": m.description,
-                    "max_duration_seconds": m.max_duration_seconds,
-                    "elapsed_seconds": m.elapsed_seconds,
-                    "started": m.started,
-                    "paused": m.paused,
-                    "tasks": [
-                        {
-                            "id": t.id,
-                            "title": t.title,
-                            "description": t.description,
-                            "projected_seconds": t.projected_seconds,
-                            "completed": t.completed
-                        }
-                        for t in m.tasks
-                    ]
-                }
-                for m in self._missions.values()
-            ]
+            return list(self._missions.values())

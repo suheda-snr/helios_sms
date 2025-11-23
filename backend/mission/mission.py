@@ -1,10 +1,11 @@
 from PySide6.QtCore import QObject, Signal, Slot
 from typing import Any
+import logging
 
 from backend.mission.manager import MissionManager
-from backend.common.topics import TRICORDER_MISSION_COMMANDS, TRICORDER_MISSION_STATE
-from backend.common.utils import qjs_to_py, safe_publish
 from backend.mission.models import Mission
+
+logger = logging.getLogger(__name__)
 
 
 class MissionBackend(QObject):
@@ -16,10 +17,11 @@ class MissionBackend(QObject):
             # Create manager without MQTT by default (simpler, single in-memory source)
             self._manager = MissionManager(mqtt_host, mqtt_port, client_id, state_change_callback=self._on_state_change)
             try:
-                print(f"MissionBackend: created MissionManager, mqtt_configured={bool(getattr(self._manager, '_mqtt', None))}")
+                logger.debug("MissionBackend: created MissionManager, mqtt_configured=%s", bool(getattr(self._manager, '_mqtt', None)))
             except Exception:
-                print("MissionBackend: created MissionManager")
+                logger.debug("MissionBackend: created MissionManager")
         except Exception:
+            logger.exception("Failed to create MissionManager")
             self._manager = None
 
     def _on_state_change(self, payload: dict):
@@ -28,33 +30,19 @@ class MissionBackend(QObject):
         except Exception:
             pass
 
-    @Slot('QVariant')
-    def publishMissionCommand(self, payload: Any):
-        try:
-            py_payload = qjs_to_py(payload)
-        except Exception:
-            py_payload = payload
-        try:
-            if self._manager and getattr(self._manager, '_mqtt', None):
-                # publish command via manager's mqtt
-                safe_publish(self._manager._mqtt, TRICORDER_MISSION_COMMANDS, py_payload)
-                return True
-        except Exception:
-            pass
-        return False
-
     @Slot(result='QVariant')
     def getMissions(self):
         try:
             if self._manager:
                 missions = self._manager.get_missions()
                 try:
-                    print(f"MissionBackend.getMissions: returning {len(missions)} missions")
+                    logger.debug("MissionBackend.getMissions: returning %d missions", len(missions))
                 except Exception:
-                    print("MissionBackend.getMissions: returning missions")
-                return missions
-        except Exception as e:
-            print(f"Error fetching missions: {e}")
+                    logger.debug("MissionBackend.getMissions: returning missions")
+                # Convert model objects to serializable dicts for QML
+                return [m.to_dict() for m in missions]
+        except Exception:
+            logger.exception("Error fetching missions")
         return []
 
     @Slot(str, str, result=bool)
@@ -62,20 +50,19 @@ class MissionBackend(QObject):
         try:
             if self._manager:
                 return self._manager.complete_task(mission_id, task_id)
-        except Exception as e:
-            print(f"Error completing task: {e}")
+        except Exception:
+            logger.exception("Error completing task")
         return False
 
     @Slot(str, result=bool)
     def startMission(self, mission_id: str):
         try:
-            print(f"MissionBackend.startMission called with mission_id={mission_id}")
             if self._manager:
                 ok = self._manager.start_mission(mission_id)
-                print(f"MissionBackend.startMission result={ok} for mission_id={mission_id}")
+                # manager logs started at INFO level; keep backend quiet
                 return ok
-        except Exception as e:
-            print(f"Error in startMission: {e}")
+        except Exception:
+            logger.exception("Error in startMission")
         return False
 
     @Slot(str, result=bool)
@@ -110,17 +97,9 @@ class MissionBackend(QObject):
         try:
             if self._manager:
                 return self._manager.set_task_completion(mission_id, task_id, bool(completed))
-        except Exception as e:
-            print(f"Error in markTaskComplete: {e}")
-        return False
-
-    @Slot()
-    def requestMissionState(self):
-        try:
-            if self._manager:
-                self._manager._publish_state()
         except Exception:
-            pass
+            logger.exception("Error in markTaskComplete")
+        return False
 
     def shutdown(self):
         try:

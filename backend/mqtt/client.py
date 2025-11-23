@@ -31,7 +31,7 @@ class MQTTClient:
 
     def connect(self):
         try:
-            self._logger.info("MQTT connecting to %s:%s as client_id=%s", self.host, self.port, getattr(self, 'client_id', '<unknown>'))
+            self._logger.debug("MQTT connecting to %s:%s as client_id=%s", self.host, self.port, getattr(self, 'client_id', '<unknown>'))
             self._client.connect(self.host, self.port, 60)
             # do not start loop here; callers may manage loop lifecycle
             self._stop_reconnect = False
@@ -63,7 +63,7 @@ class MQTTClient:
     def _on_connect(self, client, userdata, flags, rc):
         if rc == 0:
             self._connected = True
-            self._logger.info("Connected to MQTT at %s:%s (client_id=%s)", self.host, self.port, getattr(self, 'client_id', '<unknown>'))
+            self._logger.debug("Connected to MQTT at %s:%s (client_id=%s)", self.host, self.port, getattr(self, 'client_id', '<unknown>'))
             client.subscribe(self.DEFAULT_TOPIC)
         else:
             self._logger.warning("Connection failed: %s (client_id=%s)", rc, getattr(self, 'client_id', '<unknown>'))
@@ -84,10 +84,10 @@ class MQTTClient:
             backoff = 1.0
             while not self._stop_reconnect:
                 try:
-                    self._logger.info("Attempting MQTT reconnect...")
+                    self._logger.debug("Attempting MQTT reconnect...")
                     with self._lock:
                         self._client.reconnect()
-                    self._logger.info("MQTT reconnect succeeded")
+                    self._logger.debug("MQTT reconnect succeeded")
                     return
                 except Exception as e:
                     self._logger.debug("Reconnect failed: %s", e)

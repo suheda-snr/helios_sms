@@ -10,21 +10,21 @@
         "title": "Vent Valve Inspection",
         "description": "Inspect and verify the suit vent valve seals for microfractures.",
         "projected_seconds": 600,
-        "completed": true
+        "completed": false
       },
       {
         "id": "04ca07ea-fac1-49c9-842d-b4f84293cf1e",
         "title": "Battery Health Check",
         "description": "Run diagnostics on the power cell and log charge/discharge behaviour.",
         "projected_seconds": 300,
-        "completed": true
+        "completed": false
       }
     ],
     "started": false,
     "paused": false,
-    "elapsed_seconds": 60,
+    "elapsed_seconds": 62,
     "projected_seconds": 900,
-    "progress": 100.0,
+    "progress": 0.0,
     "over_max": false
   },
   {
@@ -48,9 +48,9 @@
         "completed": true
       }
     ],
-    "started": true,
-    "paused": true,
-    "elapsed_seconds": 839,
+    "started": false,
+    "paused": false,
+    "elapsed_seconds": 841,
     "projected_seconds": 180,
     "progress": 100.0,
     "over_max": false

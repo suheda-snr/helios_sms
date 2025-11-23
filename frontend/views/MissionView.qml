@@ -34,6 +34,11 @@ Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
             model: missions
+            signal requestRefresh()
+            onRequestRefresh: {
+                // central place to refresh model from backend
+                model = missionBackend.getMissions()
+            }
 
             delegate: Rectangle {
                 width: parent.width
@@ -85,9 +90,6 @@ Item {
                             enabled: !modelData.started
                             onClicked: {
                                 var ok = missionBackend.startMission(modelData.id)
-                                if (ok) {
-                                    refreshTimer.start()
-                                }
                             }
                         }
 
@@ -97,10 +99,8 @@ Item {
                             onClicked: {
                                 if (modelData.paused) {
                                     var ok = missionBackend.resumeMission(modelData.id)
-                                    if (ok) refreshTimer.start()
                                 } else {
                                     var ok = missionBackend.pauseMission(modelData.id)
-                                    if (ok) refreshTimer.start()
                                 }
                             }
                         }
@@ -110,9 +110,6 @@ Item {
                             enabled: modelData.started
                             onClicked: {
                                 var ok = missionBackend.stopMission(modelData.id)
-                                if (ok) {
-                                    refreshTimer.start()
-                                }
                             }
                         }
                     }
@@ -165,10 +162,6 @@ Item {
                                         onCheckedChanged: {
                                             // pass (missionId, taskId, completed) to backend
                                             var ok = missionBackend.markTaskComplete(missionId, modelData.id, checked)
-                                            if (ok) {
-                                                // schedule a refresh after the model update completes
-                                                refreshTimer.start()
-                                            }
                                         }
                                     }
                                 }
@@ -201,9 +194,9 @@ Item {
     // Listen for backend updates (emitted every second by the mission manager ticker)
     Connections {
         target: missionBackend
-        onMissionsUpdated: {
+        function onMissionsUpdated() {
             // update the UI model when the backend signals a state change
-            missionView.missions = missionBackend.getMissions()
+            missionList.requestRefresh()
         }
     }
 

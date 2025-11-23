@@ -23,7 +23,7 @@ class PersistenceManager:
                 os.makedirs(d, exist_ok=True)
             with open(self.path, 'w', encoding='utf-8') as f:
                 json.dump(data, f, indent=2)
-            logger.info("Saved %d missions to %s", len(missions), self.path)
+            logger.debug("Saved %d missions to %s", len(missions), self.path)
             return True
         except Exception:
             logger.exception("Failed saving missions to file: %s", self.path)
